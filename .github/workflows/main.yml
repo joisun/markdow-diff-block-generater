@@ -5,6 +5,10 @@ on:
     branches:
       - main  # or the branch you want to deploy from
 
+# 添加明确的权限设置
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
