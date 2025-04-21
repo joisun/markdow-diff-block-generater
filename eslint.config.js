@@ -12,7 +12,15 @@ export default tseslint.config(
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        React: 'readonly',
+      },
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -28,13 +36,25 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-expressions": "off",
       "@typescript-eslint/no-unused-vars": ['error', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^_' }],
       // Stylistic 规则
-      '@stylistic/semi': ['error', 'always'],
-      '@stylistic/quotes': ['error', 'double'],
+      '@stylistic/semi': ['error', 'never'],
+      '@stylistic/quotes': ['error', 'single'],
       '@stylistic/indent': ['error', 2],
       '@stylistic/comma-dangle': ['error', 'always-multiline'],
       '@stylistic/no-trailing-spaces': 'error',
       '@stylistic/eol-last': ['error', 'always'],
       '@stylistic/no-multiple-empty-lines': ['error', { max: 1, maxEOF: 1 }],
+      '@stylistic/object-curly-spacing': ['error', 'always'],
+      '@stylistic/comma-spacing': ['error', { before: false, after: true }],
+      '@stylistic/arrow-spacing': ['error', { before: true, after: true }],
+      '@stylistic/keyword-spacing': ['error', { before: true, after: true }],
+      '@stylistic/space-before-blocks': ['error', 'always'],
+      '@stylistic/space-before-function-paren': ['error', {
+        anonymous: 'always',
+        named: 'never',
+        asyncArrow: 'always',
+      }],
+      '@stylistic/space-infix-ops': 'error',
+      '@stylistic/key-spacing': ['error', { beforeColon: false, afterColon: true }],
     },
   },
 )
