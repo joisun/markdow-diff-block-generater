@@ -1,39 +1,36 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import { useTheme } from '@/components/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Toggle } from '@/components/ui/toggle'
-import { useTheme } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
+import { Toggle } from '@/components/ui/toggle'
 import { useToast } from '@/hooks/use-toast'
+import { useCallback, useMemo, useState } from 'react'
 
 // --- CodeMirror Imports ---
-import CodeMirror from '@uiw/react-codemirror'
-import { EditorView, lineNumbers } from '@codemirror/view'
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { tags } from '@lezer/highlight'
-import { StreamLanguage } from '@codemirror/language'
+import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
 import { diff } from '@codemirror/legacy-modes/mode/diff'
+import { EditorView } from '@codemirror/view'
+import { tags } from '@lezer/highlight'
+import CodeMirror from '@uiw/react-codemirror'
 
 // --- Diff Library Import ---
-import { diffLines, Change } from 'diff'
+import { Change, diffLines } from 'diff'
 
 // --- Styles and Icons ---
-import './App.css'
-import { GitHubLogoIcon, SunIcon, MoonIcon } from '@radix-ui/react-icons'
+import { GitHubLogoIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import {
-  LayoutGrid,
-  LayoutList,
+  Copy,
   Maximize2,
   Minimize2,
-  Copy,
-  Plus,
   Minus,
+  Plus,
 } from 'lucide-react'
+import './App.css'
 
 // --- Constants ---
-const BASE_FONT_SIZE: number = 14
-const MIN_FONT_SIZE: number = 10
+const MIN_FONT_SIZE: number = 9
 const MAX_FONT_SIZE: number = 24
+const BASE_FONT_SIZE: number = MIN_FONT_SIZE
 
 // --- Main Application Component ---
 function App(): JSX.Element {
@@ -41,7 +38,6 @@ function App(): JSX.Element {
   const [originText, setOriginText] = useState<string>('')
   const [changedText, setChangedText] = useState<string>('')
   const [isExpanded, setIsExpanded] = useState<boolean>(false)
-  const [diffMode, setDiffMode] = useState<'unified' | 'split'>('unified')
   const [fontSize, setFontSize] = useState<number>(BASE_FONT_SIZE)
 
   // --- Hooks ---
@@ -59,7 +55,6 @@ function App(): JSX.Element {
   }, [])
 
   const toggleExpand = useCallback(() => setIsExpanded(prev => !prev), [])
-  const toggleDiffMode = useCallback(() => setDiffMode(prev => prev === 'unified' ? 'split' : 'unified'), [])
   const toggleTheme = useCallback(() => setTheme(isDark ? 'light' : 'dark'), [isDark, setTheme])
 
   const copyToClipboard = useCallback(async (textToCopy: string) => {
@@ -84,72 +79,6 @@ function App(): JSX.Element {
     ])
   }, [isDark])
 
-  // Split view diff highlighting
-  const splitViewDiff = useMemo(() => {
-    if (!originText && !changedText) return { leftHighlights: [], rightHighlights: [] }
-
-    const diff = diffLines(originText || '', changedText || '')
-    const leftHighlights: number[] = []
-    const rightHighlights: number[] = []
-    let leftLine = 0
-    let rightLine = 0
-
-    diff.forEach(part => {
-      const lines = part.value.split('\n')
-      // Adjust line count for empty last line
-      const lineCount = lines[lines.length - 1] === '' ? lines.length - 1 : lines.length
-
-      if (part.removed) {
-        // Mark removed lines in left view
-        for (let i = 0; i < lineCount; i++) {
-          leftHighlights.push(leftLine + i)
-        }
-        leftLine += lineCount
-      } else if (part.added) {
-        // Mark added lines in right view
-        for (let i = 0; i < lineCount; i++) {
-          rightHighlights.push(rightLine + i)
-        }
-        rightLine += lineCount
-      } else {
-        // Unchanged lines
-        leftLine += lineCount
-        rightLine += lineCount
-      }
-    })
-
-    return { leftHighlights, rightHighlights }
-  }, [originText, changedText])
-
-  const createDiffGutter = useCallback((highlights: number[]) => {
-    return lineNumbers({
-      formatNumber: (lineNo: number) => {
-        const isHighlighted = highlights.includes(lineNo - 1)
-        return isHighlighted ? (highlights === splitViewDiff.leftHighlights ? '- ' : '+ ') + lineNo : String(lineNo)
-      },
-    })
-  }, [splitViewDiff])
-
-  const createDiffBackground = useCallback((highlights: number[]) => {
-    return EditorView.theme({
-      '.cm-line': {
-        '&.cm-active-line': {
-          backgroundColor: 'transparent',
-        },
-      },
-      ...Object.fromEntries(
-        highlights.map(line => [
-          `.cm-line:nth-of-type(${line + 1})`,
-          {
-            backgroundColor: highlights === splitViewDiff.leftHighlights
-              ? (isDark ? 'rgba(224, 108, 117, 0.2)' : 'rgba(228, 86, 73, 0.2)')
-              : (isDark ? 'rgba(152, 195, 121, 0.2)' : 'rgba(80, 161, 79, 0.2)'),
-          },
-        ]),
-      ),
-    })
-  }, [splitViewDiff, isDark])
-
   const editorTheme = useMemo(() => {
     return EditorView.theme({
       '&': {
@@ -162,12 +91,38 @@ function App(): JSX.Element {
       },
       '.cm-content': {
         caretColor: isDark ? '#fff' : '#000',
+        fontSize: `${fontSize}px`, // Explicitly set font size on content
+      },
+      '.cm-gutters': {
+        fontSize: `${fontSize}px`, // Apply font size to gutters (line numbers)
+      },
+      '.cm-lineNumbers': {
+        fontSize: `${fontSize}px`, // Apply font size to line numbers specifically
       },
       '&.cm-focused': {
         outline: 'none',
       },
       '.cm-line': {
         padding: '0 4px',
+      },
+      // Customize scrollbars
+      '&': {
+        '--scrollbar-width': '4px',
+      },
+      '.cm-scroller::-webkit-scrollbar': {
+        width: 'var(--scrollbar-width)',
+        height: 'var(--scrollbar-width)',
+      },
+      '.cm-scroller::-webkit-scrollbar-track': {
+        background: isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.05)',
+        borderRadius: '4px',
+      },
+      '.cm-scroller::-webkit-scrollbar-thumb': {
+        background: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+        borderRadius: '4px',
+      },
+      '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+        background: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
       },
     })
   }, [fontSize, isDark])
@@ -196,28 +151,28 @@ function App(): JSX.Element {
   const mainLayoutClass = isExpanded ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'
 
   return (
-    <main className="p-4 h-screen flex flex-col bg-background text-foreground">
+    <main className="p-2 h-screen flex flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="flex items-center justify-between mb-4 flex-shrink-0">
-        <h1 className="text-2xl font-bold flex items-center gap-2">Markdown Diff Block Generator</h1>
+      <header className="flex items-center justify-between mb-2 flex-shrink-0">
+        <h1 className="text-lg font-bold flex items-center gap-2">Markdown Diff Block Generator</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={decreaseFontSize} className="h-8 w-8" title="Decrease font size" disabled={fontSize <= MIN_FONT_SIZE}><Minus size={16} /></Button>
           <span className="text-xs w-8 text-center tabular-nums">{fontSize}px</span>
           <Button variant="outline" size="icon" onClick={increaseFontSize} className="h-8 w-8" title="Increase font size" disabled={fontSize >= MAX_FONT_SIZE}><Plus size={16} /></Button>
           <Button variant="outline" size="icon" onClick={toggleTheme} className="h-8 w-8" title="Toggle light/dark mode">{isDark ? <SunIcon /> : <MoonIcon />}</Button>
-          <a href="https://github.com/joisun/markdown-diff-block-generater" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground" title="View on GitHub"><GitHubLogoIcon width={16} height={16} /></a>
+          <a href="https://github.com/joisun/markdow-diff-block-generater" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground" title="View on GitHub"><GitHubLogoIcon width={16} height={16} /></a>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <section className={`flex-1 grid ${mainLayoutClass} gap-4 overflow-hidden`}>
+      <section className={`flex-1 grid ${mainLayoutClass} gap-2 overflow-hidden`}>
         {/* Original and Changed Text Inputs (Visible when not expanded) */}
         {!isExpanded && (
           <>
             {/* Original Text */}
             <div className="flex flex-col gap-2 overflow-hidden">
-              <Label className="font-semibold shrink-0 h-6" htmlFor="origin-text">Original text</Label>
-              <div className="flex-1 border border-border rounded-md overflow-hidden">
+              <Label className="font-semibold shrink-0 h-8" htmlFor="origin-text">Original text</Label>
+              <div className="flex-1 border border-border overflow-hidden">
                 <CodeMirror
                   value={originText}
                   height="100%"
@@ -235,8 +190,8 @@ function App(): JSX.Element {
 
             {/* Changed Text */}
             <div className="flex flex-col gap-2 overflow-hidden">
-              <Label className="font-semibold shrink-0 h-6" htmlFor="changed-text">Changed text</Label>
-              <div className="flex-1 border border-border rounded-md overflow-hidden">
+              <Label className="font-semibold shrink-0 h-8" htmlFor="changed-text">Changed text</Label>
+              <div className="flex-1 border border-border overflow-hidden">
                 <CodeMirror
                   value={changedText}
                   height="100%"
@@ -257,77 +212,33 @@ function App(): JSX.Element {
         {/* Result Diff View */}
         <div className={`${layoutClass} flex flex-col gap-2 overflow-hidden`}>
           {/* Result Header */}
-          <div className="flex items-center justify-between h-6 flex-shrink-0">
+          <div className="flex items-center justify-between h-8 flex-shrink-0">
             <Label className="font-semibold" htmlFor="result">Result (Markdown Diff)</Label>
             <div className="flex items-center gap-2">
-              <Toggle variant="outline" size="sm" pressed={diffMode === 'split'} onPressedChange={toggleDiffMode} aria-label="Toggle diff view" title={diffMode === 'unified' ? 'Switch to split view' : 'Switch to unified view'} className="h-8 w-8 p-0">{diffMode === 'unified' ? <LayoutList size={16} /> : <LayoutGrid size={16} />}</Toggle>
               <Toggle variant="outline" size="sm" pressed={isExpanded} onPressedChange={toggleExpand} aria-label="Toggle expand view" title={isExpanded ? 'Collapse view' : 'Expand view'} className="h-8 w-8 p-0">{isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</Toggle>
               <Button variant="outline" size="icon" onClick={() => copyToClipboard(resultText)} aria-label="Copy diff to clipboard" title="Copy diff to clipboard" className="h-8 w-8" disabled={!resultText}><Copy size={16} /></Button>
             </div>
           </div>
 
           {/* Diff View Content */}
-          {diffMode === 'unified' ? (
-            <div className="flex-1 border border-border rounded-md overflow-hidden">
-              <CodeMirror
-                value={resultText}
-                height="100%"
-                theme={isDark ? 'dark' : 'light'}
-                editable={false}
-                className="h-full"
-                basicSetup={{
-                  lineNumbers: true,
-                  highlightActiveLine: false,
-                }}
-                extensions={[
-                  editorTheme,
-                  syntaxHighlighting(diffHighlightStyle),
-                  StreamLanguage.define(diff),
-                ]}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 grid grid-cols-2 gap-2">
-              {/* Original Text (Left) */}
-              <div className="border border-border rounded-md overflow-hidden">
-                <div className={`text-xs px-2 py-1 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>Original</div>
-                <CodeMirror
-                  value={originText}
-                  height="calc(100% - 24px)"
-                  theme={isDark ? 'dark' : 'light'}
-                  editable={false}
-                  basicSetup={{
-                    lineNumbers: true,
-                    highlightActiveLine: false,
-                  }}
-                  extensions={[
-                    editorTheme,
-                    createDiffGutter(splitViewDiff.leftHighlights),
-                    createDiffBackground(splitViewDiff.leftHighlights),
-                  ]}
-                />
-              </div>
-              {/* Changed Text (Right) */}
-              <div className="border border-border rounded-md overflow-hidden">
-                <div className={`text-xs px-2 py-1 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>Modified</div>
-                <CodeMirror
-                  value={changedText}
-                  height="calc(100% - 24px)"
-                  theme={isDark ? 'dark' : 'light'}
-                  editable={false}
-                  basicSetup={{
-                    lineNumbers: true,
-                    highlightActiveLine: false,
-                  }}
-                  extensions={[
-                    editorTheme,
-                    createDiffGutter(splitViewDiff.rightHighlights),
-                    createDiffBackground(splitViewDiff.rightHighlights),
-                  ]}
-                />
-              </div>
-            </div>
-          )}
+          <div className="flex-1 border border-border overflow-hidden">
+            <CodeMirror
+              value={resultText}
+              height="100%"
+              theme={isDark ? 'dark' : 'light'}
+              editable={false}
+              className="h-full"
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: false,
+              }}
+              extensions={[
+                editorTheme,
+                syntaxHighlighting(diffHighlightStyle),
+                StreamLanguage.define(diff),
+              ]}
+            />
+          </div>
         </div>
       </section>
 
