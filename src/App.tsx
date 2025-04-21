@@ -9,6 +9,10 @@ import { useToast } from '@/hooks/use-toast'
 // --- CodeMirror Imports ---
 import CodeMirror from '@uiw/react-codemirror'
 import { EditorView } from '@codemirror/view'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
+import { StreamLanguage } from '@codemirror/language'
+import { diff } from '@codemirror/legacy-modes/mode/diff'
 
 // --- Diff Library Import ---
 import { diffLines, Change } from 'diff'
@@ -73,6 +77,13 @@ function App(): JSX.Element {
   }, [toast])
 
   // --- Editor Theme ---
+  const diffHighlightStyle = useMemo(() => {
+    return HighlightStyle.define([
+      { tag: tags.inserted, backgroundColor: isDark ? 'rgba(152, 195, 121, 0.2)' : 'rgba(80, 161, 79, 0.2)' },
+      { tag: tags.deleted, backgroundColor: isDark ? 'rgba(224, 108, 117, 0.2)' : 'rgba(228, 86, 73, 0.2)' },
+    ])
+  }, [isDark])
+
   const editorTheme = useMemo(() => {
     return EditorView.theme({
       '&': {
@@ -88,6 +99,9 @@ function App(): JSX.Element {
       },
       '&.cm-focused': {
         outline: 'none',
+      },
+      '.cm-line': {
+        padding: '0 4px',
       },
     })
   }, [fontSize, isDark])
@@ -187,20 +201,59 @@ function App(): JSX.Element {
           </div>
 
           {/* Diff View Content */}
-          <div className="flex-1 border border-border rounded-md overflow-hidden">
-            <CodeMirror
-              value={resultText}
-              height="100%"
-              theme={isDark ? 'dark' : 'light'}
-              editable={false}
-              className="h-full"
-              basicSetup={{
-                lineNumbers: true,
-                highlightActiveLine: false,
-              }}
-              extensions={[editorTheme]}
-            />
-          </div>
+          {diffMode === 'unified' ? (
+            <div className="flex-1 border border-border rounded-md overflow-hidden">
+              <CodeMirror
+                value={resultText}
+                height="100%"
+                theme={isDark ? 'dark' : 'light'}
+                editable={false}
+                className="h-full"
+                basicSetup={{
+                  lineNumbers: true,
+                  highlightActiveLine: false,
+                }}
+                extensions={[
+                  editorTheme,
+                  syntaxHighlighting(diffHighlightStyle),
+                  StreamLanguage.define(diff),
+                ]}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              {/* Original Text (Left) */}
+              <div className="border border-border rounded-md overflow-hidden">
+                <div className={`text-xs px-2 py-1 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>Original</div>
+                <CodeMirror
+                  value={originText}
+                  height="calc(100% - 24px)"
+                  theme={isDark ? 'dark' : 'light'}
+                  editable={false}
+                  basicSetup={{
+                    lineNumbers: true,
+                    highlightActiveLine: false,
+                  }}
+                  extensions={[editorTheme]}
+                />
+              </div>
+              {/* Changed Text (Right) */}
+              <div className="border border-border rounded-md overflow-hidden">
+                <div className={`text-xs px-2 py-1 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>Modified</div>
+                <CodeMirror
+                  value={changedText}
+                  height="calc(100% - 24px)"
+                  theme={isDark ? 'dark' : 'light'}
+                  editable={false}
+                  basicSetup={{
+                    lineNumbers: true,
+                    highlightActiveLine: false,
+                  }}
+                  extensions={[editorTheme]}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
