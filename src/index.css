@@ -68,4 +68,17 @@
   body {
     @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
   }
+
+  /* 自定义滚动条样式 */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-[hsl(var(--secondary))];
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-[hsl(var(--muted-foreground))] rounded-full hover:bg-[hsl(var(--accent-foreground))];
+  }
 }
