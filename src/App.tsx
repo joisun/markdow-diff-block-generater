@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast'
 
 // --- CodeMirror Imports ---
 import CodeMirror from '@uiw/react-codemirror'
-import { EditorView } from '@codemirror/view'
+import { EditorView, lineNumbers } from '@codemirror/view'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { StreamLanguage } from '@codemirror/language'
@@ -83,6 +83,72 @@ function App(): JSX.Element {
       { tag: tags.deleted, backgroundColor: isDark ? 'rgba(224, 108, 117, 0.2)' : 'rgba(228, 86, 73, 0.2)' },
     ])
   }, [isDark])
+
+  // Split view diff highlighting
+  const splitViewDiff = useMemo(() => {
+    if (!originText && !changedText) return { leftHighlights: [], rightHighlights: [] }
+
+    const diff = diffLines(originText || '', changedText || '')
+    const leftHighlights: number[] = []
+    const rightHighlights: number[] = []
+    let leftLine = 0
+    let rightLine = 0
+
+    diff.forEach(part => {
+      const lines = part.value.split('\n')
+      // Adjust line count for empty last line
+      const lineCount = lines[lines.length - 1] === '' ? lines.length - 1 : lines.length
+
+      if (part.removed) {
+        // Mark removed lines in left view
+        for (let i = 0; i < lineCount; i++) {
+          leftHighlights.push(leftLine + i)
+        }
+        leftLine += lineCount
+      } else if (part.added) {
+        // Mark added lines in right view
+        for (let i = 0; i < lineCount; i++) {
+          rightHighlights.push(rightLine + i)
+        }
+        rightLine += lineCount
+      } else {
+        // Unchanged lines
+        leftLine += lineCount
+        rightLine += lineCount
+      }
+    })
+
+    return { leftHighlights, rightHighlights }
+  }, [originText, changedText])
+
+  const createDiffGutter = useCallback((highlights: number[]) => {
+    return lineNumbers({
+      formatNumber: (lineNo: number) => {
+        const isHighlighted = highlights.includes(lineNo - 1)
+        return isHighlighted ? (highlights === splitViewDiff.leftHighlights ? '- ' : '+ ') + lineNo : String(lineNo)
+      },
+    })
+  }, [splitViewDiff])
+
+  const createDiffBackground = useCallback((highlights: number[]) => {
+    return EditorView.theme({
+      '.cm-line': {
+        '&.cm-active-line': {
+          backgroundColor: 'transparent',
+        },
+      },
+      ...Object.fromEntries(
+        highlights.map(line => [
+          `.cm-line:nth-of-type(${line + 1})`,
+          {
+            backgroundColor: highlights === splitViewDiff.leftHighlights
+              ? (isDark ? 'rgba(224, 108, 117, 0.2)' : 'rgba(228, 86, 73, 0.2)')
+              : (isDark ? 'rgba(152, 195, 121, 0.2)' : 'rgba(80, 161, 79, 0.2)'),
+          },
+        ]),
+      ),
+    })
+  }, [splitViewDiff, isDark])
 
   const editorTheme = useMemo(() => {
     return EditorView.theme({
@@ -234,7 +300,11 @@ function App(): JSX.Element {
                     lineNumbers: true,
                     highlightActiveLine: false,
                   }}
-                  extensions={[editorTheme]}
+                  extensions={[
+                    editorTheme,
+                    createDiffGutter(splitViewDiff.leftHighlights),
+                    createDiffBackground(splitViewDiff.leftHighlights),
+                  ]}
                 />
               </div>
               {/* Changed Text (Right) */}
@@ -249,7 +319,11 @@ function App(): JSX.Element {
                     lineNumbers: true,
                     highlightActiveLine: false,
                   }}
-                  extensions={[editorTheme]}
+                  extensions={[
+                    editorTheme,
+                    createDiffGutter(splitViewDiff.rightHighlights),
+                    createDiffBackground(splitViewDiff.rightHighlights),
+                  ]}
                 />
               </div>
             </div>
