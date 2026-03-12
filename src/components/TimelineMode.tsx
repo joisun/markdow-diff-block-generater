@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { diffLines } from 'diff'
 import { EditorView } from '@codemirror/view'
 import { Version } from '@/types/version'
@@ -80,6 +80,52 @@ export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps
     [toast]
   )
 
+  const handleCopyAllDiffs = useCallback(() => {
+    const allDiffsText = diffs
+      .map((diff, index) => {
+        let diffText = ''
+        diff.forEach(part => {
+          const prefix = part.added ? '+ ' : part.removed ? '- ' : '  '
+          const lines = part.value.split('\n')
+          const relevantLines = lines.length > 0 && lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines
+          relevantLines.forEach(line => {
+            if (line || relevantLines.length === 1) {
+              diffText += `${prefix}${line}\n`
+            }
+          })
+        })
+        const v1Label = versions[index].label || `v${index + 1}`
+        const v2Label = versions[index + 1].label || `v${index + 2}`
+        return `\`\`\`diff\n// ${v1Label} → ${v2Label}\n${diffText}\`\`\``
+      })
+      .join('\n\n')
+
+    navigator.clipboard.writeText(allDiffsText)
+    toast({
+      title: 'Copied all diffs',
+      description: `${diffs.length} diff blocks copied to clipboard`,
+      duration: 2000,
+    })
+  }, [diffs, versions, toast])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && focusedDiffIndex !== null && focusedDiffIndex > 0) {
+        setFocusedDiffIndex(focusedDiffIndex - 1)
+        e.preventDefault()
+      } else if (e.key === 'ArrowRight' && focusedDiffIndex !== null && focusedDiffIndex < diffs.length - 1) {
+        setFocusedDiffIndex(focusedDiffIndex + 1)
+        e.preventDefault()
+      } else if (e.key === 'Escape' && focusedDiffIndex !== null) {
+        setFocusedDiffIndex(null)
+        e.preventDefault()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [focusedDiffIndex, diffs.length])
+
   return (
     <DiffTimeline
       versions={versions}
@@ -90,6 +136,7 @@ export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps
       onDeleteVersion={handleDeleteVersion}
       onFocusDiff={handleFocusDiff}
       onCopyDiff={handleCopyDiff}
+      onCopyAllDiffs={handleCopyAllDiffs}
       fontSize={fontSize}
       theme={theme}
       editorTheme={editorTheme}

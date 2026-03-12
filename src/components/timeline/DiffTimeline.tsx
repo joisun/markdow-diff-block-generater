@@ -14,6 +14,7 @@ interface DiffTimelineProps {
   onDeleteVersion: (index: number) => void
   onFocusDiff: (index: number) => void
   onCopyDiff: (diffText: string) => void
+  onCopyAllDiffs: () => void
   fontSize: number
   theme: 'dark' | 'light'
   editorTheme: ReturnType<typeof EditorView.theme>
@@ -28,6 +29,7 @@ export function DiffTimeline({
   onDeleteVersion,
   onFocusDiff,
   onCopyDiff,
+  onCopyAllDiffs,
   fontSize,
   theme,
   editorTheme,
