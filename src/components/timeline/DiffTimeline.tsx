@@ -43,6 +43,7 @@ export function DiffTimeline({
           const isLeftOfFocusedDiff = focusedDiffIndex !== null && index === focusedDiffIndex
           const diffIndex = index
           const hasDiff = index < versions.length - 1
+          const isLast = index === versions.length - 1
 
           return (
             <div key={version.id} className="flex gap-2 h-full">
@@ -74,6 +75,13 @@ export function DiffTimeline({
                     theme={theme}
                   />
                 </>
+              )}
+
+              {isLast && (
+                <InsertButton
+                  afterIndex={index}
+                  onInsert={onInsertVersion}
+                />
               )}
             </div>
           )
