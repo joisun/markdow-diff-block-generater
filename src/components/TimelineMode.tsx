@@ -77,7 +77,7 @@ export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps
         duration: 2000,
       })
     },
-    [toast]
+    [toast],
   )
 
   const handleCopyAllDiffs = useCallback(() => {

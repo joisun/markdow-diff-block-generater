@@ -53,7 +53,7 @@ export function DiffPanel({
       })
       onCopy(diffText)
     },
-    [diff, onCopy]
+    [diff, onCopy],
   )
 
   const isDark = theme === 'dark'
@@ -63,7 +63,7 @@ export function DiffPanel({
       <div
         className={cn(
           'flex flex-col gap-2 overflow-hidden cursor-pointer transition-all duration-300',
-          'w-[60px]'
+          'w-[60px]',
         )}
         onClick={handleClick}
       >
@@ -77,7 +77,7 @@ export function DiffPanel({
               className={cn(
                 'absolute w-full',
                 block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'),
-                block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40')
+                block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'),
               )}
               style={{
                 top: `${block.top}%`,
@@ -94,7 +94,7 @@ export function DiffPanel({
     <div
       className={cn(
         'flex flex-col gap-2 overflow-hidden transition-all duration-300',
-        'w-[500px]'
+        'w-[500px]',
       )}
     >
       <div className="flex items-center justify-between h-8 flex-shrink-0">

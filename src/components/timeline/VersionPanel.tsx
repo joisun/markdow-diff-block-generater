@@ -34,7 +34,7 @@ export function VersionPanel({
     (value: string) => {
       onUpdate(index, value)
     },
-    [index, onUpdate]
+    [index, onUpdate],
   )
 
   const handleDelete = useCallback(() => {
@@ -45,7 +45,7 @@ export function VersionPanel({
     <div
       className={cn(
         'flex flex-col gap-2 overflow-hidden transition-all duration-300',
-        isLeftOfFocusedDiff ? 'w-[120px]' : 'w-[400px]'
+        isLeftOfFocusedDiff ? 'w-[120px]' : 'w-[400px]',
       )}
     >
       <div className="flex items-center justify-between h-8 flex-shrink-0">

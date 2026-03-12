@@ -55,7 +55,7 @@ export function DualTextMode({ fontSize, theme, editorTheme }: DualTextModeProps
         })
       }
     },
-    [toast]
+    [toast],
   )
 
   const diffHighlightStyle = useMemo(() => {
