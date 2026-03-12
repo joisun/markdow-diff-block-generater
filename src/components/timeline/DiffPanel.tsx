@@ -6,7 +6,7 @@ import { diff as diffMode } from '@codemirror/legacy-modes/mode/diff'
 import { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { Button } from '@/components/ui/button'
-import { Copy, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Copy, UnfoldHorizontal, FoldHorizontal } from 'lucide-react'
 import { computeDiffBlocks } from '@/utils/diffUtils'
 import { cn } from '@/lib/utils'
 
@@ -68,7 +68,7 @@ export function DiffPanel({
         onClick={handleClick}
       >
         <div className="flex items-center justify-center h-8 flex-shrink-0">
-          <ChevronRight size={16} className="text-muted-foreground" />
+          <UnfoldHorizontal size={16} className="text-muted-foreground" />
         </div>
         <div
           className="flex-1 border border-border overflow-hidden relative"
@@ -109,7 +109,7 @@ export function DiffPanel({
       )}
     >
       <div className="flex items-center justify-between h-8 flex-shrink-0">
-        <ChevronLeft
+        <FoldHorizontal
           size={16}
           className="text-muted-foreground cursor-pointer"
           onClick={handleClick}
