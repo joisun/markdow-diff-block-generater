@@ -6,7 +6,7 @@ import { diff as diffMode } from '@codemirror/legacy-modes/mode/diff'
 import { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { Button } from '@/components/ui/button'
-import { Copy } from 'lucide-react'
+import { Copy, ChevronRight, ChevronLeft } from 'lucide-react'
 import { computeDiffBlocks } from '@/utils/diffUtils'
 import { cn } from '@/lib/utils'
 
@@ -68,9 +68,20 @@ export function DiffPanel({
         onClick={handleClick}
       >
         <div className="flex items-center justify-center h-8 flex-shrink-0">
-          <span className="text-xs text-muted-foreground">diff</span>
+          <ChevronRight size={16} className="text-muted-foreground" />
         </div>
-        <div className="flex-1 border border-border overflow-hidden relative bg-muted">
+        <div
+          className="flex-1 border border-border overflow-hidden relative"
+          style={{
+            backgroundImage: `repeating-linear-gradient(
+              45deg,
+              transparent,
+              transparent 10px,
+              ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 10px,
+              ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 20px
+            )`
+          }}
+        >
           {diffBlocks.map((block, i) => (
             <div
               key={i}
@@ -98,9 +109,12 @@ export function DiffPanel({
       )}
     >
       <div className="flex items-center justify-between h-8 flex-shrink-0">
-        <span className="text-xs text-muted-foreground cursor-pointer" onClick={handleClick}>
-          diff (click to collapse)
-        </span>
+        <ChevronLeft
+          size={16}
+          className="text-muted-foreground cursor-pointer"
+          onClick={handleClick}
+          title="Collapse diff"
+        />
         <Button
           variant="ghost"
           size="icon"
