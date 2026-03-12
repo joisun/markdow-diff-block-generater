@@ -42,15 +42,16 @@ export function DiffTimeline({
 
   return (
     <div className="flex-1 overflow-x-auto overflow-y-hidden">
-      <div
-        className="h-12"
-        title="在此区域滚动以移动面板，避免触发编辑器内部滚动"
-        style={{
-          backgroundImage: `radial-gradient(circle, ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} 1px, transparent 1px)`,
-          backgroundSize: '10px 10px',
-        }}
-      />
-      <div className="flex p-2" style={{ height: 'calc(100% - 48px)' }}>
+      <div style={{ display: 'inline-block', minWidth: '100%', height: '100%' }}>
+        <div
+          className="h-12"
+          title="在此区域滚动以移动面板，避免触发编辑器内部滚动"
+          style={{
+            backgroundImage: `radial-gradient(circle, ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} 1px, transparent 1px)`,
+            backgroundSize: '10px 10px',
+          }}
+        />
+        <div className="flex p-2" style={{ height: 'calc(100% - 48px)' }}>
         {versions.map((version, index) => {
           const diffIndex = index
           const hasDiff = index < versions.length - 1
@@ -93,6 +94,7 @@ export function DiffTimeline({
             </div>
           )
         })}
+        </div>
       </div>
     </div>
   )

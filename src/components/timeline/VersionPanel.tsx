@@ -1,11 +1,17 @@
-import { useCallback } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { EditorView } from '@codemirror/view'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Trash2, SquarePlus, SquareMinus } from 'lucide-react'
+import { Trash2, SquarePlus, SquareMinus, Maximize2, Plus, Minus } from 'lucide-react'
 import { Version } from '@/types/version'
 import { motion } from 'framer-motion'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface VersionPanelProps {
   version: Version
@@ -31,6 +37,18 @@ export function VersionPanel({
   theme,
   editorTheme,
 }: VersionPanelProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [dialogFontSize, setDialogFontSize] = useState(14)
+
+  const dialogEditorTheme = useMemo(() => {
+    return EditorView.theme({
+      '&': { fontSize: `${dialogFontSize}px` },
+      '.cm-content': { fontSize: `${dialogFontSize}px` },
+      '.cm-gutters': { fontSize: `${dialogFontSize}px` },
+      '.cm-lineNumbers': { fontSize: `${dialogFontSize}px` },
+    })
+  }, [dialogFontSize])
+
   const handleChange = useCallback(
     (value: string) => {
       onUpdate(index, value)
@@ -86,6 +104,15 @@ export function VersionPanel({
           {version.label || `v${index + 1}`}
         </Label>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsFullscreen(true)}
+            className="h-5 w-5"
+            title="Fullscreen view"
+          >
+            <Maximize2 size={12} />
+          </Button>
           {canDelete && (
             <Button
               variant="ghost"
@@ -113,6 +140,51 @@ export function VersionPanel({
           extensions={[editorTheme]}
         />
       </div>
+
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] h-[90vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <DialogTitle>{version.label || `v${index + 1}`}</DialogTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setDialogFontSize(prev => Math.max(prev - 1, 9))}
+                  className="h-6 w-6"
+                  title="Decrease font size"
+                >
+                  <Minus size={12} />
+                </Button>
+                <span className="text-xs w-8 text-center tabular-nums">{dialogFontSize}px</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setDialogFontSize(prev => Math.min(prev + 1, 24))}
+                  className="h-6 w-6"
+                  title="Increase font size"
+                >
+                  <Plus size={12} />
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 border border-border overflow-hidden">
+            <CodeMirror
+              value={version.content}
+              height="100%"
+              theme={theme}
+              onChange={handleChange}
+              className="h-full"
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: false,
+              }}
+              extensions={[dialogEditorTheme]}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

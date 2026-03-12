@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import { Change } from 'diff'
 import CodeMirror from '@uiw/react-codemirror'
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
@@ -7,10 +7,16 @@ import { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Copy, SquarePlus, SquareMinus } from 'lucide-react'
+import { Copy, SquarePlus, SquareMinus, Maximize2, Plus, Minus } from 'lucide-react'
 import { computeDiffBlocks } from '@/utils/diffUtils'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface DiffPanelProps {
   diff: Change[]
@@ -35,6 +41,8 @@ export function DiffPanel({
   leftLabel,
   rightLabel,
 }: DiffPanelProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [dialogFontSize, setDialogFontSize] = useState(14)
   const diffBlocks = useMemo(() => computeDiffBlocks(diff), [diff])
 
   const handleClick = useCallback(() => {
@@ -123,15 +131,26 @@ export function DiffPanel({
         <Label className="font-semibold text-sm">
           {leftLabel} → {rightLabel}
         </Label>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleCopy}
-          className="h-6 w-6"
-          title="Copy diff"
-        >
-          <Copy size={14} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsFullscreen(true)}
+            className="h-6 w-6"
+            title="Fullscreen view"
+          >
+            <Maximize2 size={14} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCopy}
+            className="h-6 w-6"
+            title="Copy diff"
+          >
+            <Copy size={14} />
+          </Button>
+        </div>
       </div>
       <div
         className="flex-1 flex border border-border overflow-hidden"
@@ -148,7 +167,18 @@ export function DiffPanel({
         <div className="flex-1 overflow-hidden">
           <DiffViewer diff={diff} theme={theme} fontSize={fontSize} />
         </div>
-        <div className="w-2 relative flex-shrink-0">
+        <div
+          className="w-8 relative flex-shrink-0 cursor-pointer"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const y = e.clientY - rect.top
+            const percentage = y / rect.height
+            const container = e.currentTarget.previousElementSibling?.querySelector('.cm-scroller')
+            if (container) {
+              container.scrollTop = container.scrollHeight * percentage
+            }
+          }}
+        >
           {diffBlocks.map((block, i) => (
             <div
               key={i}
@@ -165,6 +195,69 @@ export function DiffPanel({
           ))}
         </div>
       </div>
+
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] h-[90vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <DialogTitle>{leftLabel} → {rightLabel}</DialogTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setDialogFontSize(prev => Math.max(prev - 1, 9))}
+                  className="h-6 w-6"
+                  title="Decrease font size"
+                >
+                  <Minus size={12} />
+                </Button>
+                <span className="text-xs w-8 text-center tabular-nums">{dialogFontSize}px</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setDialogFontSize(prev => Math.min(prev + 1, 24))}
+                  className="h-6 w-6"
+                  title="Increase font size"
+                >
+                  <Plus size={12} />
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 flex border border-border overflow-hidden">
+            <div className="flex-1 overflow-hidden">
+              <DiffViewer diff={diff} theme={theme} fontSize={dialogFontSize} />
+            </div>
+            <div
+              className="w-8 relative flex-shrink-0 cursor-pointer"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const y = e.clientY - rect.top
+                const percentage = y / rect.height
+                const container = e.currentTarget.previousElementSibling?.querySelector('.cm-scroller')
+                if (container) {
+                  container.scrollTop = container.scrollHeight * percentage
+                }
+              }}
+            >
+              {diffBlocks.map((block, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'absolute w-full',
+                    block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'),
+                    block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'),
+                  )}
+                  style={{
+                    top: `${block.top}%`,
+                    height: `${block.height}%`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }
