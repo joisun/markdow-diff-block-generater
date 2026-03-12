@@ -27,3 +27,20 @@ ins {
 	height: 100%;
 	min-height: 80vh;
   }
+/* 横向滚动条样式 - 最细 */
+::-webkit-scrollbar {
+	height: 2px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(128, 128, 128, 0.3);
+	border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(128, 128, 128, 0.5);
+}

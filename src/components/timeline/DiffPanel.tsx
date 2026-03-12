@@ -6,34 +6,40 @@ import { diff as diffMode } from '@codemirror/legacy-modes/mode/diff'
 import { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { Button } from '@/components/ui/button'
-import { Copy, UnfoldHorizontal, FoldHorizontal } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import { Copy, SquarePlus, SquareMinus } from 'lucide-react'
 import { computeDiffBlocks } from '@/utils/diffUtils'
 import { cn } from '@/lib/utils'
+import { motion } from 'framer-motion'
 
 interface DiffPanelProps {
   diff: Change[]
   index: number
-  isFocused: boolean
-  onFocus: (index: number) => void
+  isExpanded: boolean
+  onToggle: (index: number) => void
   onCopy: (diffText: string) => void
   fontSize: number
   theme: 'dark' | 'light'
+  leftLabel: string
+  rightLabel: string
 }
 
 export function DiffPanel({
   diff,
   index,
-  isFocused,
-  onFocus,
+  isExpanded,
+  onToggle,
   onCopy,
   fontSize,
   theme,
+  leftLabel,
+  rightLabel,
 }: DiffPanelProps) {
   const diffBlocks = useMemo(() => computeDiffBlocks(diff), [diff])
 
   const handleClick = useCallback(() => {
-    onFocus(isFocused ? -1 : index)
-  }, [index, isFocused, onFocus])
+    onToggle(index)
+  }, [index, onToggle])
 
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
@@ -58,17 +64,18 @@ export function DiffPanel({
 
   const isDark = theme === 'dark'
 
-  if (!isFocused) {
+  if (!isExpanded) {
     return (
-      <div
-        className={cn(
-          'flex flex-col gap-2 overflow-hidden cursor-pointer transition-all duration-300',
-          'w-[60px]',
-        )}
+      <motion.div
+        layout
+        initial={{ width: 500, opacity: 0 }}
+        animate={{ width: 60, opacity: 1 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="flex flex-col gap-2 overflow-hidden cursor-pointer"
         onClick={handleClick}
       >
-        <div className="flex items-center justify-center h-8 flex-shrink-0">
-          <UnfoldHorizontal size={16} className="text-muted-foreground" />
+        <div className="flex items-center justify-start h-8 flex-shrink-0 pl-2">
+          <SquarePlus size={16} className="text-muted-foreground" />
         </div>
         <div
           className="flex-1 border border-border overflow-hidden relative"
@@ -97,24 +104,25 @@ export function DiffPanel({
             />
           ))}
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-2 overflow-hidden transition-all duration-300',
-        'w-[500px]',
-      )}
+    <motion.div
+      layout
+      initial={{ width: 60, opacity: 0 }}
+      animate={{ width: 500, opacity: 1 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="flex flex-col gap-2 overflow-hidden"
     >
       <div className="flex items-center justify-between h-8 flex-shrink-0">
-        <FoldHorizontal
-          size={16}
-          className="text-muted-foreground cursor-pointer"
-          onClick={handleClick}
-          title="Collapse diff"
-        />
+        <div className="cursor-pointer" onClick={handleClick} title="Collapse diff">
+          <SquareMinus size={16} className="text-muted-foreground" />
+        </div>
+        <Label className="font-semibold text-sm">
+          {leftLabel} → {rightLabel}
+        </Label>
         <Button
           variant="ghost"
           size="icon"
@@ -125,10 +133,39 @@ export function DiffPanel({
           <Copy size={14} />
         </Button>
       </div>
-      <div className="flex-1 border border-border overflow-hidden">
-        <DiffViewer diff={diff} theme={theme} fontSize={fontSize} />
+      <div
+        className="flex-1 flex border border-border overflow-hidden"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 10px,
+            ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 20px
+          )`
+        }}
+      >
+        <div className="flex-1 overflow-hidden">
+          <DiffViewer diff={diff} theme={theme} fontSize={fontSize} />
+        </div>
+        <div className="w-2 relative flex-shrink-0">
+          {diffBlocks.map((block, i) => (
+            <div
+              key={i}
+              className={cn(
+                'absolute w-full',
+                block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'),
+                block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'),
+              )}
+              style={{
+                top: `${block.top}%`,
+                height: `${block.height}%`,
+              }}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -170,13 +207,22 @@ function DiffViewer({ diff, theme, fontSize }: DiffViewerProps) {
       '&': {
         height: '100%',
         fontSize: `${fontSize}px`,
+        backgroundColor: 'transparent !important',
       },
       '.cm-scroller': {
         fontFamily: 'monospace',
         lineHeight: '1.5',
+        backgroundColor: 'transparent !important',
+      },
+      '.cm-gutters': {
+        borderRight: 'none',
       },
       '.cm-content': {
         fontSize: `${fontSize}px`,
+        backgroundColor: 'transparent !important',
+      },
+      '.cm-editor': {
+        backgroundColor: 'transparent !important',
       },
     })
   }, [fontSize])

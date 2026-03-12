@@ -8,11 +8,13 @@ import { InsertButton } from './InsertButton'
 interface DiffTimelineProps {
   versions: Version[]
   diffs: Change[][]
-  focusedDiffIndex: number | null
+  expandedDiffs: Set<number>
+  expandedVersions: Set<number>
   onUpdateVersion: (index: number, content: string) => void
   onInsertVersion: (afterIndex: number) => void
   onDeleteVersion: (index: number) => void
-  onFocusDiff: (index: number) => void
+  onToggleDiff: (index: number) => void
+  onToggleVersion: (index: number) => void
   onCopyDiff: (diffText: string) => void
   onCopyAllDiffs: () => void
   fontSize: number
@@ -23,65 +25,70 @@ interface DiffTimelineProps {
 export function DiffTimeline({
   versions,
   diffs,
-  focusedDiffIndex,
+  expandedDiffs,
+  expandedVersions,
   onUpdateVersion,
   onInsertVersion,
   onDeleteVersion,
-  onFocusDiff,
+  onToggleDiff,
+  onToggleVersion,
   onCopyDiff,
-  onCopyAllDiffs,
   fontSize,
   theme,
   editorTheme,
 }: DiffTimelineProps) {
   const canDelete = versions.length > 2
+  const isDark = theme === 'dark'
 
   return (
     <div className="flex-1 overflow-x-auto overflow-y-hidden">
-      <div className="flex h-full gap-2 p-2">
+      <div
+        className="h-12"
+        title="在此区域滚动以移动面板，避免触发编辑器内部滚动"
+        style={{
+          backgroundImage: `radial-gradient(circle, ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} 1px, transparent 1px)`,
+          backgroundSize: '10px 10px',
+        }}
+      />
+      <div className="flex p-2" style={{ height: 'calc(100% - 48px)' }}>
         {versions.map((version, index) => {
-          const isLeftOfFocusedDiff = focusedDiffIndex !== null && index === focusedDiffIndex
           const diffIndex = index
           const hasDiff = index < versions.length - 1
-          const isLast = index === versions.length - 1
 
           return (
-            <div key={version.id} className="flex gap-2 h-full">
+            <div key={version.id} className="flex h-full">
               <VersionPanel
                 version={version}
                 index={index}
-                isLeftOfFocusedDiff={isLeftOfFocusedDiff}
+                isExpanded={expandedVersions.has(index)}
                 onUpdate={onUpdateVersion}
                 onDelete={onDeleteVersion}
+                onToggle={onToggleVersion}
                 canDelete={canDelete}
                 fontSize={fontSize}
                 theme={theme}
                 editorTheme={editorTheme}
               />
 
+              <div className="relative w-6 flex-shrink-0">
+                <InsertButton afterIndex={index} onInsert={onInsertVersion} />
+              </div>
+
               {hasDiff && (
                 <>
-                  <InsertButton
-                    afterIndex={index}
-                    onInsert={onInsertVersion}
-                  />
                   <DiffPanel
                     diff={diffs[diffIndex]}
                     index={diffIndex}
-                    isFocused={focusedDiffIndex === diffIndex}
-                    onFocus={onFocusDiff}
+                    isExpanded={expandedDiffs.has(diffIndex)}
+                    onToggle={onToggleDiff}
                     onCopy={onCopyDiff}
                     fontSize={fontSize}
                     theme={theme}
+                    leftLabel={versions[diffIndex].label || `v${diffIndex + 1}`}
+                    rightLabel={versions[diffIndex + 1].label || `v${diffIndex + 2}`}
                   />
+                  <div className="w-2 flex-shrink-0" />
                 </>
-              )}
-
-              {isLast && (
-                <InsertButton
-                  afterIndex={index}
-                  onInsert={onInsertVersion}
-                />
               )}
             </div>
           )

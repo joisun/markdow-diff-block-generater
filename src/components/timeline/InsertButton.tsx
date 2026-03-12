@@ -8,15 +8,15 @@ interface InsertButtonProps {
 
 export function InsertButton({ afterIndex, onInsert }: InsertButtonProps) {
   return (
-    <div className="flex items-center justify-center px-2">
+    <div className="absolute inset-0 flex items-center justify-center">
       <Button
-        variant="outline"
+        variant="link"
         size="icon"
         onClick={() => onInsert(afterIndex)}
-        className="h-8 w-8"
+        className="h-6 w-6"
         title="Insert new version"
       >
-        <Plus size={16} />
+        <Plus size={14} />
       </Button>
     </div>
   )

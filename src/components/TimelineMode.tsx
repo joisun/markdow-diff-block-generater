@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { diffLines } from 'diff'
 import { EditorView } from '@codemirror/view'
 import { Version } from '@/types/version'
@@ -10,17 +10,28 @@ interface TimelineModeProps {
   fontSize: number
   theme: 'dark' | 'light'
   editorTheme: ReturnType<typeof EditorView.theme>
+  versions: Version[]
+  setVersions: React.Dispatch<React.SetStateAction<Version[]>>
+  expandedDiffs: Set<number>
+  setExpandedDiffs: React.Dispatch<React.SetStateAction<Set<number>>>
+  expandedVersions: Set<number>
+  setExpandedVersions: React.Dispatch<React.SetStateAction<Set<number>>>
+  onCopyAllDiffs: () => void
 }
 
-export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps) {
+export function TimelineMode({
+  fontSize,
+  theme,
+  editorTheme,
+  versions,
+  setVersions,
+  expandedDiffs,
+  setExpandedDiffs,
+  expandedVersions,
+  setExpandedVersions,
+  onCopyAllDiffs,
+}: TimelineModeProps) {
   const { toast } = useToast()
-
-  const [versions, setVersions] = useState<Version[]>([
-    { id: generateVersionId(), content: '', label: 'v1' },
-    { id: generateVersionId(), content: '', label: 'v2' },
-  ])
-
-  const [focusedDiffIndex, setFocusedDiffIndex] = useState<number | null>(null)
 
   const diffs = useMemo(() => {
     return versions.slice(0, -1).map((version, index) => {
@@ -37,17 +48,39 @@ export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps
   }, [])
 
   const handleInsertVersion = useCallback((afterIndex: number) => {
+    const isLastPosition = afterIndex === versions.length - 1
+
     setVersions(prev => {
       const updated = [...prev]
+      const maxVersionNum = prev.reduce((max, v) => {
+        const match = v.label?.match(/^v(\d+)$/)
+        return match ? Math.max(max, parseInt(match[1])) : max
+      }, 0)
       const newVersion: Version = {
         id: generateVersionId(),
         content: '',
-        label: `v${prev.length + 1}`,
+        label: `v${maxVersionNum + 1}`,
       }
       updated.splice(afterIndex + 1, 0, newVersion)
       return updated
     })
-  }, [])
+
+    setExpandedVersions(prev => {
+      const next = new Set(prev)
+      next.add(afterIndex + 1)
+      return next
+    })
+
+    if (isLastPosition) {
+      setTimeout(() => {
+        const panels = document.querySelectorAll('[data-version-index]')
+        const targetPanel = panels[afterIndex + 1]
+        if (targetPanel) {
+          targetPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+        }
+      }, 100)
+    }
+  }, [versions.length, setExpandedVersions])
 
   const handleDeleteVersion = useCallback((index: number) => {
     if (versions.length <= 2) {
@@ -61,11 +94,31 @@ export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps
     }
 
     setVersions(prev => prev.filter((_, i) => i !== index))
-    setFocusedDiffIndex(null)
+    setExpandedDiffs(new Set())
   }, [versions.length, toast])
 
-  const handleFocusDiff = useCallback((index: number) => {
-    setFocusedDiffIndex(index === -1 ? null : index)
+  const handleToggleDiff = useCallback((index: number) => {
+    setExpandedDiffs(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }, [])
+
+  const handleToggleVersion = useCallback((index: number) => {
+    setExpandedVersions(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
   }, [])
 
   const handleCopyDiff = useCallback(
@@ -80,63 +133,19 @@ export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps
     [toast],
   )
 
-  const handleCopyAllDiffs = useCallback(() => {
-    const allDiffsText = diffs
-      .map((diff, index) => {
-        let diffText = ''
-        diff.forEach(part => {
-          const prefix = part.added ? '+ ' : part.removed ? '- ' : '  '
-          const lines = part.value.split('\n')
-          const relevantLines = lines.length > 0 && lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines
-          relevantLines.forEach(line => {
-            if (line || relevantLines.length === 1) {
-              diffText += `${prefix}${line}\n`
-            }
-          })
-        })
-        const v1Label = versions[index].label || `v${index + 1}`
-        const v2Label = versions[index + 1].label || `v${index + 2}`
-        return `\`\`\`diff\n// ${v1Label} → ${v2Label}\n${diffText}\`\`\``
-      })
-      .join('\n\n')
-
-    navigator.clipboard.writeText(allDiffsText)
-    toast({
-      title: 'Copied all diffs',
-      description: `${diffs.length} diff blocks copied to clipboard`,
-      duration: 2000,
-    })
-  }, [diffs, versions, toast])
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && focusedDiffIndex !== null && focusedDiffIndex > 0) {
-        setFocusedDiffIndex(focusedDiffIndex - 1)
-        e.preventDefault()
-      } else if (e.key === 'ArrowRight' && focusedDiffIndex !== null && focusedDiffIndex < diffs.length - 1) {
-        setFocusedDiffIndex(focusedDiffIndex + 1)
-        e.preventDefault()
-      } else if (e.key === 'Escape' && focusedDiffIndex !== null) {
-        setFocusedDiffIndex(null)
-        e.preventDefault()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [focusedDiffIndex, diffs.length])
-
   return (
     <DiffTimeline
       versions={versions}
       diffs={diffs}
-      focusedDiffIndex={focusedDiffIndex}
+      expandedDiffs={expandedDiffs}
+      expandedVersions={expandedVersions}
       onUpdateVersion={handleUpdateVersion}
       onInsertVersion={handleInsertVersion}
       onDeleteVersion={handleDeleteVersion}
-      onFocusDiff={handleFocusDiff}
+      onToggleDiff={handleToggleDiff}
+      onToggleVersion={handleToggleVersion}
       onCopyDiff={handleCopyDiff}
-      onCopyAllDiffs={handleCopyAllDiffs}
+      onCopyAllDiffs={onCopyAllDiffs}
       fontSize={fontSize}
       theme={theme}
       editorTheme={editorTheme}
