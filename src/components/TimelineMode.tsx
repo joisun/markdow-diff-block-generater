@@ -1,0 +1,98 @@
+import { useState, useMemo, useCallback } from 'react'
+import { diffLines } from 'diff'
+import { EditorView } from '@codemirror/view'
+import { Version } from '@/types/version'
+import { generateVersionId } from '@/utils/diffUtils'
+import { DiffTimeline } from './timeline/DiffTimeline'
+import { useToast } from '@/hooks/use-toast'
+
+interface TimelineModeProps {
+  fontSize: number
+  theme: 'dark' | 'light'
+  editorTheme: ReturnType<typeof EditorView.theme>
+}
+
+export function TimelineMode({ fontSize, theme, editorTheme }: TimelineModeProps) {
+  const { toast } = useToast()
+
+  const [versions, setVersions] = useState<Version[]>([
+    { id: generateVersionId(), content: '', label: 'v1' },
+    { id: generateVersionId(), content: '', label: 'v2' },
+  ])
+
+  const [focusedDiffIndex, setFocusedDiffIndex] = useState<number | null>(null)
+
+  const diffs = useMemo(() => {
+    return versions.slice(0, -1).map((version, index) => {
+      return diffLines(version.content, versions[index + 1].content)
+    })
+  }, [versions])
+
+  const handleUpdateVersion = useCallback((index: number, content: string) => {
+    setVersions(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], content }
+      return updated
+    })
+  }, [])
+
+  const handleInsertVersion = useCallback((afterIndex: number) => {
+    setVersions(prev => {
+      const updated = [...prev]
+      const newVersion: Version = {
+        id: generateVersionId(),
+        content: '',
+        label: `v${prev.length + 1}`,
+      }
+      updated.splice(afterIndex + 1, 0, newVersion)
+      return updated
+    })
+  }, [])
+
+  const handleDeleteVersion = useCallback((index: number) => {
+    if (versions.length <= 2) {
+      toast({
+        title: 'Cannot delete',
+        description: 'At least 2 versions are required',
+        variant: 'destructive',
+        duration: 2000,
+      })
+      return
+    }
+
+    setVersions(prev => prev.filter((_, i) => i !== index))
+    setFocusedDiffIndex(null)
+  }, [versions.length, toast])
+
+  const handleFocusDiff = useCallback((index: number) => {
+    setFocusedDiffIndex(index === -1 ? null : index)
+  }, [])
+
+  const handleCopyDiff = useCallback(
+    (diffText: string) => {
+      navigator.clipboard.writeText('```diff\n' + diffText + '\n```')
+      toast({
+        title: 'Copied to clipboard',
+        description: 'Diff content copied as markdown code block',
+        duration: 2000,
+      })
+    },
+    [toast]
+  )
+
+  return (
+    <DiffTimeline
+      versions={versions}
+      diffs={diffs}
+      focusedDiffIndex={focusedDiffIndex}
+      onUpdateVersion={handleUpdateVersion}
+      onInsertVersion={handleInsertVersion}
+      onDeleteVersion={handleDeleteVersion}
+      onFocusDiff={handleFocusDiff}
+      onCopyDiff={handleCopyDiff}
+      fontSize={fontSize}
+      theme={theme}
+      editorTheme={editorTheme}
+    />
+  )
+}
