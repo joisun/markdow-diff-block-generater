@@ -1,6 +1,8 @@
 import { useCallback, useState, useMemo } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
-import { EditorView } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
+import { foldGutter, foldKeymap } from '@codemirror/language'
+import { javascript } from '@codemirror/lang-javascript'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Trash2, SquarePlus, SquareMinus, Maximize2, Plus, Minus } from 'lucide-react'
@@ -136,8 +138,9 @@ export function VersionPanel({
           basicSetup={{
             lineNumbers: true,
             highlightActiveLine: false,
+            foldGutter: true,
           }}
-          extensions={[editorTheme]}
+          extensions={[editorTheme, javascript({ jsx: true }), keymap.of(foldKeymap)]}
         />
       </div>
 
@@ -179,8 +182,9 @@ export function VersionPanel({
               basicSetup={{
                 lineNumbers: true,
                 highlightActiveLine: false,
+                foldGutter: true,
               }}
-              extensions={[dialogEditorTheme]}
+              extensions={[dialogEditorTheme, javascript({ jsx: true }), keymap.of(foldKeymap)]}
             />
           </div>
         </DialogContent>
