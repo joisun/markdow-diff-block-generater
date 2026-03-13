@@ -1,0 +1,60 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Deploy to Vercel
+        run: pnpm dlx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+# 文件已创建。还需要在 GitHub
+#   仓库中配置三个 Secrets：
+
+#   Settings → Secrets and
+#   variables → Actions → New
+#   repository secret
+
+#   Secret 名称: VERCEL_TOKEN
+#   获取方式: Vercel Dashboard →
+#     Settings → Tokens → Create
+#   ───────────────────────────────
+#   ─
+#   Secret 名称: VERCEL_ORG_ID
+#   获取方式: 运行 vercel link
+#     后查看 .vercel/project.json
+#     中的 orgId
+#   ───────────────────────────────
+#   ─
+#   Secret 名称: VERCEL_PROJECT_ID
+#   获取方式: 同上，查看 projectId
+
+#   获取 ORG_ID 和 PROJECT_ID
+#   最快的方式：
+
+#   # 本地执行一次，会生成
+#   .vercel/project.json
+#   npx vercel link
+#   cat .vercel/project.json
+
+#   配置好 Secrets 后，每次 push 到
+#    main 就会自动部署到 Vercel。
