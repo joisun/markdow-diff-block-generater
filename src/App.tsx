@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { useCallback, useMemo, useState } from 'react'
 import { EditorView } from '@codemirror/view'
 import { GitHubLogoIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
-import { Minus, Plus, SquareStack, Trash2, Maximize2, Minimize2, GitCompare, Layers } from 'lucide-react'
+import { Minus, Plus, SquareStack, Trash2, Maximize2, Minimize2, GitCompare, Layers, Download, Upload } from 'lucide-react'
 import './App.css'
 import { TimelineMode } from '@/components/TimelineMode'
 import { Version } from '@/types/version'
@@ -36,7 +36,7 @@ function App(): JSX.Element {
   ])
   const [expandedDiffs, setExpandedDiffs] = useState<Set<number>>(new Set())
   const [expandedVersions, setExpandedVersions] = useState<Set<number>>(
-    new Set([0, 1])
+    new Set([0, 1]),
   )
 
   const { theme, setTheme } = useTheme()
@@ -121,6 +121,64 @@ function App(): JSX.Element {
     setExpandedDiffs(new Set())
     setExpandedVersions(new Set([0, 1]))
   }, [])
+
+  const handleExport = useCallback(() => {
+    const data = {
+      version: '1.0.0',
+      exportTime: new Date().toISOString(),
+      fontSize,
+      theme,
+      versions,
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `diff-timeline-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast({
+      title: 'Exported successfully',
+      description: 'Timeline data saved to JSON file',
+      duration: 2000,
+    })
+  }, [fontSize, theme, versions, toast])
+
+  const handleImport = useCallback((file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string)
+        if (!data.version || !Array.isArray(data.versions) || data.versions.length < 2) {
+          throw new Error('Invalid format')
+        }
+        if (typeof data.fontSize !== 'number' || data.fontSize < 9 || data.fontSize > 24) {
+          throw new Error('Invalid fontSize')
+        }
+        if (data.theme !== 'dark' && data.theme !== 'light') {
+          throw new Error('Invalid theme')
+        }
+        setVersions(data.versions)
+        setFontSize(data.fontSize)
+        setTheme(data.theme)
+        setExpandedDiffs(new Set())
+        setExpandedVersions(new Set([0, 1]))
+        toast({
+          title: 'Imported successfully',
+          description: `Loaded ${data.versions.length} versions`,
+          duration: 2000,
+        })
+      } catch (err) {
+        toast({
+          title: 'Import failed',
+          description: err instanceof Error ? err.message : 'Invalid JSON file',
+          variant: 'destructive',
+          duration: 3000,
+        })
+      }
+    }
+    reader.readAsText(file)
+  }, [setTheme, toast])
 
   const editorTheme = useMemo(() => {
     return EditorView.theme({
@@ -256,6 +314,50 @@ function App(): JSX.Element {
           >
             <SquareStack size={16} />
           </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleExport}
+            className="h-8 w-8"
+            title="Export to JSON"
+          >
+            <Download size={16} />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                title="Import from JSON"
+              >
+                <Upload size={16} />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Import from JSON?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will replace all current data. Make sure to export first if you want to save your work.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                  const input = document.createElement('input')
+                  input.type = 'file'
+                  input.accept = '.json'
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0]
+                    if (file) handleImport(file)
+                  }
+                  input.click()
+                }}>
+                  Choose File
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <div className="w-px h-6 bg-border" />
           <Button
             variant="outline"
