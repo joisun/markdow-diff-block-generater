@@ -1,22 +1,15 @@
-import { useMemo, useCallback, useState } from 'react'
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react'
 import { Change } from 'diff'
-import CodeMirror from '@uiw/react-codemirror'
-import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
-import { diff as diffMode } from '@codemirror/legacy-modes/mode/diff'
 import { EditorView } from '@codemirror/view'
-import { tags } from '@lezer/highlight'
+import { EditorState } from '@codemirror/state'
+import { unifiedMergeView } from '@codemirror/merge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Copy, SquarePlus, SquareMinus, Maximize2, Plus, Minus } from 'lucide-react'
+import { Copy, SquarePlus, SquareMinus, Maximize2, Plus, Minus, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { computeDiffBlocks } from '@/utils/diffUtils'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface DiffPanelProps {
   diff: Change[]
@@ -30,36 +23,35 @@ interface DiffPanelProps {
   rightLabel: string
 }
 
-export function DiffPanel({
-  diff,
-  index,
-  isExpanded,
-  onToggle,
-  onCopy,
-  fontSize,
-  theme,
-  leftLabel,
-  rightLabel,
-}: DiffPanelProps) {
+export function DiffPanel({ diff, index, isExpanded, onToggle, onCopy, fontSize, theme, leftLabel, rightLabel }: DiffPanelProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [dialogFontSize, setDialogFontSize] = useState(14)
+  const [isCollapsed, setIsCollapsed] = useState(true)
+  const viewRef = useRef<EditorView | null>(null)
+  const dialogViewRef = useRef<EditorView | null>(null)
   const diffBlocks = useMemo(() => computeDiffBlocks(diff), [diff])
 
   const handleClick = useCallback(() => {
     onToggle(index)
   }, [index, onToggle])
 
+  const handleToggleCollapse = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      setIsCollapsed(!isCollapsed)
+    },
+    [isCollapsed],
+  )
+
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
       let diffText = ''
-      diff.forEach(part => {
+      diff.forEach((part) => {
         const prefix = part.added ? '+ ' : part.removed ? '- ' : '  '
         const lines = part.value.split('\n')
-        const relevantLines = lines.length > 0 && lines[lines.length - 1] === ''
-          ? lines.slice(0, -1)
-          : lines
-        relevantLines.forEach(line => {
+        const relevantLines = lines.length > 0 && lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines
+        relevantLines.forEach((line) => {
           if (line || relevantLines.length === 1) {
             diffText += `${prefix}${line}\n`
           }
@@ -94,17 +86,13 @@ export function DiffPanel({
               transparent 10px,
               ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 10px,
               ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 20px
-            )`
+            )`,
           }}
         >
           {diffBlocks.map((block, i) => (
             <div
               key={i}
-              className={cn(
-                'absolute w-full',
-                block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'),
-                block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'),
-              )}
+              className={cn('absolute w-full', block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'), block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'))}
               style={{
                 top: `${block.top}%`,
                 height: `${block.height}%`,
@@ -117,13 +105,7 @@ export function DiffPanel({
   }
 
   return (
-    <motion.div
-      layout
-      initial={{ width: 60, opacity: 0 }}
-      animate={{ width: 500, opacity: 1 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="flex flex-col gap-2 overflow-hidden"
-    >
+    <motion.div layout initial={{ width: 60, opacity: 0 }} animate={{ width: 500, opacity: 1 }} transition={{ duration: 0.3, ease: 'easeOut' }} className="flex flex-col gap-2 overflow-hidden">
       <div className="flex items-center justify-between h-8 flex-shrink-0">
         <div className="cursor-pointer" onClick={handleClick} title="Collapse diff">
           <SquareMinus size={16} className="text-muted-foreground" />
@@ -132,22 +114,13 @@ export function DiffPanel({
           {leftLabel} → {rightLabel}
         </Label>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsFullscreen(true)}
-            className="h-6 w-6"
-            title="Fullscreen view"
-          >
+          <Button variant="ghost" size="icon" onClick={handleToggleCollapse} className="h-6 w-6" title={isCollapsed ? 'Expand all unchanged regions' : 'Collapse all unchanged regions'}>
+            {isCollapsed ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(true)} className="h-6 w-6" title="Fullscreen view">
             <Maximize2 size={14} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className="h-6 w-6"
-            title="Copy diff"
-          >
+          <Button variant="ghost" size="icon" onClick={handleCopy} className="h-6 w-6" title="Copy diff">
             <Copy size={14} />
           </Button>
         </div>
@@ -161,11 +134,11 @@ export function DiffPanel({
             transparent 10px,
             ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 10px,
             ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} 20px
-          )`
+          )`,
         }}
       >
         <div className="flex-1 overflow-hidden">
-          <DiffViewer diff={diff} theme={theme} fontSize={fontSize} />
+          <DiffViewer diff={diff} theme={theme} fontSize={fontSize} viewRef={viewRef} isCollapsed={isCollapsed} />
         </div>
         <div
           className="w-8 relative flex-shrink-0 cursor-pointer"
@@ -182,11 +155,7 @@ export function DiffPanel({
           {diffBlocks.map((block, i) => (
             <div
               key={i}
-              className={cn(
-                'absolute w-full',
-                block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'),
-                block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'),
-              )}
+              className={cn('absolute w-full', block.type === 'added' && (isDark ? 'bg-green-500/30' : 'bg-green-500/40'), block.type === 'removed' && (isDark ? 'bg-red-500/30' : 'bg-red-500/40'))}
               style={{
                 top: `${block.top}%`,
                 height: `${block.height}%`,
@@ -200,25 +169,18 @@ export function DiffPanel({
         <DialogContent className="max-w-[90vw] max-h-[90vh] h-[90vh] flex flex-col">
           <DialogHeader>
             <div className="flex items-center justify-between pr-8">
-              <DialogTitle>{leftLabel} → {rightLabel}</DialogTitle>
+              <DialogTitle>
+                {leftLabel} → {rightLabel}
+              </DialogTitle>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setDialogFontSize(prev => Math.max(prev - 1, 9))}
-                  className="h-6 w-6"
-                  title="Decrease font size"
-                >
+                <Button variant="outline" size="icon" onClick={handleToggleCollapse} className="h-6 w-6" title={isCollapsed ? 'Expand all unchanged regions' : 'Collapse all unchanged regions'}>
+                  {isCollapsed ? <ChevronsDownUp size={12} /> : <ChevronsUpDown size={12} />}
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => setDialogFontSize((prev) => Math.max(prev - 1, 9))} className="h-6 w-6" title="Decrease font size">
                   <Minus size={12} />
                 </Button>
                 <span className="text-xs w-8 text-center tabular-nums">{dialogFontSize}px</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setDialogFontSize(prev => Math.min(prev + 1, 24))}
-                  className="h-6 w-6"
-                  title="Increase font size"
-                >
+                <Button variant="outline" size="icon" onClick={() => setDialogFontSize((prev) => Math.min(prev + 1, 24))} className="h-6 w-6" title="Increase font size">
                   <Plus size={12} />
                 </Button>
               </div>
@@ -226,7 +188,7 @@ export function DiffPanel({
           </DialogHeader>
           <div className="flex-1 flex border border-border overflow-hidden">
             <div className="flex-1 overflow-hidden">
-              <DiffViewer diff={diff} theme={theme} fontSize={dialogFontSize} />
+              <DiffViewer diff={diff} theme={theme} fontSize={dialogFontSize} viewRef={dialogViewRef} isCollapsed={isCollapsed} />
             </div>
             <div
               className="w-8 relative flex-shrink-0 cursor-pointer"
@@ -266,76 +228,64 @@ interface DiffViewerProps {
   diff: Change[]
   theme: 'dark' | 'light'
   fontSize: number
+  viewRef: React.MutableRefObject<EditorView | null>
+  isCollapsed: boolean
 }
 
-function DiffViewer({ diff, theme, fontSize }: DiffViewerProps) {
-  const isDark = theme === 'dark'
+function DiffViewer({ diff, theme, fontSize, viewRef, isCollapsed }: DiffViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  const diffText = useMemo(() => {
-    let result = ''
-    diff.forEach(part => {
-      const prefix = part.added ? '+ ' : part.removed ? '- ' : '  '
-      const lines = part.value.split('\n')
-      const relevantLines = lines.length > 0 && lines[lines.length - 1] === ''
-        ? lines.slice(0, -1)
-        : lines
-      relevantLines.forEach(line => {
-        if (line || relevantLines.length === 1) {
-          result += `${prefix}${line}\n`
-        }
-      })
+  const { original, modified } = useMemo(() => {
+    let orig = ''
+    let mod = ''
+    diff.forEach((part) => {
+      if (part.removed) {
+        orig += part.value
+      } else if (part.added) {
+        mod += part.value
+      } else {
+        orig += part.value
+        mod += part.value
+      }
     })
-    return result
+    return { original: orig, modified: mod }
   }, [diff])
 
-  const diffHighlightStyle = useMemo(() => {
-    return HighlightStyle.define([
-      { tag: tags.inserted, backgroundColor: isDark ? 'rgba(152, 195, 121, 0.2)' : 'rgba(80, 161, 79, 0.2)' },
-      { tag: tags.deleted, backgroundColor: isDark ? 'rgba(224, 108, 117, 0.2)' : 'rgba(228, 86, 73, 0.2)' },
-    ])
-  }, [isDark])
+  useEffect(() => {
+    if (!containerRef.current) return
 
-  const editorTheme = useMemo(() => {
-    return EditorView.theme({
-      '&': {
-        height: '100%',
-        fontSize: `${fontSize}px`,
-        backgroundColor: 'transparent !important',
-      },
-      '.cm-scroller': {
-        fontFamily: 'monospace',
-        lineHeight: '1.5',
-        backgroundColor: 'transparent !important',
-      },
-      '.cm-gutters': {
-        borderRight: 'none',
-      },
-      '.cm-content': {
-        fontSize: `${fontSize}px`,
-        backgroundColor: 'transparent !important',
-      },
-      '.cm-editor': {
-        backgroundColor: 'transparent !important',
-      },
+    const view = new EditorView({
+      parent: containerRef.current,
+      state: EditorState.create({
+        doc: modified,
+        extensions: [
+          unifiedMergeView({
+            original,
+            mergeControls: false,
+            highlightChanges: true,
+            gutter: true,
+            collapseUnchanged: isCollapsed ? { margin: 3, minSize: 4 } : undefined,
+          }),
+          EditorView.editable.of(false),
+          EditorView.theme({
+            '&': { height: '100%', fontSize: `${fontSize}px` },
+            '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5' },
+            '.cm-collapsedLines': {
+              background: 'transparent !important',
+              backgroundImage: 'none !important',
+            },
+          }),
+        ],
+      }),
     })
-  }, [fontSize])
 
-  return (
-    <CodeMirror
-      value={diffText}
-      height="100%"
-      theme={isDark ? 'dark' : 'light'}
-      editable={false}
-      className="h-full"
-      basicSetup={{
-        lineNumbers: true,
-        highlightActiveLine: false,
-      }}
-      extensions={[
-        editorTheme,
-        syntaxHighlighting(diffHighlightStyle),
-        StreamLanguage.define(diffMode),
-      ]}
-    />
-  )
+    viewRef.current = view
+
+    return () => {
+      view.destroy()
+      viewRef.current = null
+    }
+  }, [original, modified, fontSize, theme, viewRef, isCollapsed])
+
+  return <div ref={containerRef} className="h-full" />
 }
